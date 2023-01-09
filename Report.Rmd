@@ -1,0 +1,216 @@
+---
+title: "Rindalyzer"
+author: "Mauro Esposito"
+date: "`r Sys.Date()`"
+output: html_document
+params:
+    results: ""
+    fragments: ""
+    fastq_r1: ""
+    fastq_r2: ""
+    reference: ""
+    bed: ""
+    mismatchPercentage: ""
+    genome: ""
+    reportDir: ""
+---
+
+```{r echo=FALSE, message=FALSE}
+# Load packages
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(magrittr)
+library(here)
+
+# Load custom functions
+source(paste0(here(), "/Filters_Functions.R"))
+
+# Update the log file
+logUpdater(modality = "Update", 
+           message = "\nRunning the Report module", 
+           outDir = params$reportDir)
+```
+
+# Input
+
+Rindalyzer was run by using:
+
+-   FASTQ files, `r paste(params$fastq_r1, "and", params$fastq_r2)`
+-   Consensus file, `r params$reference`
+-   Genome file, `r params$genome`
+-   BED file, `r params$bed`
+-   Percentage of allowed mismatches, `r params$mismatchPercentage`
+
+# Preliminary analyses
+
+```{r echo=FALSE}
+# Open the table with the results
+tableResults <- read.delim(file = params$results, header = T, sep = "\t", stringsAsFactors = F)
+
+# Re-arrange the table
+tableFragments <- tableResults[,2:6]
+colnames(tableFragments)[1] <- "Fragment_type"
+tableFragments %<>%
+    gather(ConsensusPreFilter, ConsensusPostFilter, GenomePreFilter, GenomePostFilter, 
+           key = "Filtering_step", value = "nFragments")
+tableFragments %<>%
+    group_by(Fragment_type) %>%
+    mutate(Percentage = nFragments/max(nFragments)*100) %>%
+    ungroup()
+tableFragments <- as.data.frame(tableFragments)
+tableFragments[,"Filtering_step"]=factor(x = tableFragments[,"Filtering_step"], 
+                                         levels = c("ConsensusPreFilter", "ConsensusPostFilter", 
+                                                    "GenomePreFilter", "GenomePostFilter"))
+
+# Counting
+insPre <- tableFragments[tableFragments$Fragment_type=="Inside" & tableFragments$Filtering_step=="ConsensusPreFilter",
+                         "nFragments"]
+outPre <- tableFragments[tableFragments$Fragment_type=="Outside" & tableFragments$Filtering_step=="ConsensusPreFilter",
+                         "nFragments"]
+insPost <- tableFragments[tableFragments$Fragment_type=="Inside" & tableFragments$Filtering_step=="GenomePostFilter",
+                         "nFragments"]
+outPost <- tableFragments[tableFragments$Fragment_type=="Outside" & tableFragments$Filtering_step=="GenomePostFilter",
+                         "nFragments"]
+```
+
+The starting number of Inside and Outside fragments is `r paste(insPre, "and", outPre)`, respectively. After the application of the filters, the number of Inside and Outside fragments is instead `r paste(insPost, "and", outPost)`, respectively.
+
+```{r echo=FALSE}
+# Update the log file
+logUpdater(modality = "Update", 
+           message = "1. Producing the Figure 1", 
+           outDir = params$reportDir)
+
+# Plot
+ggplot(data = tableFragments, mapping = aes(x = Filtering_step, y = nFragments, 
+                                            group = Fragment_type, color = Fragment_type)) +
+    geom_line() +
+    geom_point() +
+    labs(x = "Steps", y = "Number of fragments") +
+    guides(color=guide_legend(title="Type of fragment"))
+```
+
+After the application of the filters, the number of Inside fragments decreases of `r round(100-((insPost*100)/insPre), 2)`% while the number of Outside fragments decreases of `r round(100-((outPost*100)/outPre), 2)`%
+
+```{r echo=FALSE}
+# Update the log file
+logUpdater(modality = "Update", 
+           message = "2. Producing the Figure 2", 
+           outDir = params$reportDir)
+
+# Plot
+ggplot(data = tableFragments, mapping = aes(x = Filtering_step, y = Percentage, 
+                                            group = Fragment_type, color = Fragment_type)) +
+    geom_line() +
+    geom_point() +
+    labs(x = "Steps", y = "Percentage of fragments")
+```
+
+```{r echo=FALSE}
+# Compute the ratio
+ratio <- (tableResults[1,6]+1)/(tableResults[2,6]+1)
+
+# Re-arrange the table
+tableRatio <- (tableResults[1, 3:6]+1)/(tableResults[2, 3:6]+1)
+tableRatio %<>%
+    gather(ConsensusPreFilter, ConsensusPostFilter, GenomePreFilter, GenomePostFilter, 
+           key = "Filtering_step", value = "Ratio")
+tableRatio[,"Filtering_step"]=factor(x = tableRatio[,"Filtering_step"], 
+                                     levels = c("ConsensusPreFilter", "ConsensusPostFilter", 
+                                                "GenomePreFilter", "GenomePostFilter"))
+```
+
+# Result
+
+The analysis showed a final Inside/Outside ratio of `r ratio`.
+
+```{r echo=FALSE}
+# Update the log file
+logUpdater(modality = "Update", 
+           message = "3. Producing the Figure 3", 
+           outDir = params$reportDir)
+
+ggplot(data = tableRatio, mapping = aes(x = Filtering_step, y = Ratio)) +
+    geom_line(group = 1) +
+    geom_point() +
+    labs(x = "Steps", y = "Inside/Outside")
+```
+
+# Coverage analysis
+
+Study of the Inside/Outside fragments distribution along the consensus sequence.
+
+```{r echo=FALSE, message=FALSE}
+# Open the table with the info for each read
+tableConsensus <- read.delim(file = params$fragments, header = T, sep = "\t", stringsAsFactors = F)
+
+# Compute the length of the consensus length
+consensusLength <- consLen(consRef = params$reference)
+
+for(col in colnames(tableConsensus)[6:9]){
+    # Calculate the coverage along the consensus sequence
+    temp <- tableConsensus[,c("realStart", "realEnd", col)]
+    df <- data.frame("Position"=1:consensusLength, "Inside"=0, "Outside"=0)
+    for(p in 1:consensusLength){
+        df[p, "Inside"] <- sum(temp[,3]=="insIns" & p>=temp$realStart & p<=temp$realEnd)
+        df[p, "Outside"] <- sum(temp[,3]=="insOut" & p>=temp$realStart & p<=temp$realEnd)
+    }
+    df$Inside <- df$Inside/sum(temp[,3]=="insIns")*100
+    df$Outside <- df$Outside/sum(temp[,3]=="insOut")*100
+    
+    # Re-arrange the table
+    df %<>%
+        gather(Inside, Outside, 
+           key = "Fragment_type", value = "Percentage")
+    df[,"Step"] <- col
+    
+    # Store the result
+    if(!exists("coverage")){
+        coverage <- df
+    }else{
+        coverage <- rbind(coverage, df)
+    }
+}
+
+# Re-arrange the table
+coverage[,"Step"]=factor(x = coverage[,"Step"], 
+                         levels = c("ConsensusPreFilter", "ConsensusPostFilter", 
+                                    "GenomePreFilter", "GenomePostFilter"))
+quartile <- summary(c(min(coverage$Position), max(coverage$Position)))
+coverage[,"Quartile"] <- "to_fill"
+coverage[coverage$Position>=quartile[1] & coverage$Position<=quartile[2], "Quartile"] <- "First"
+coverage[coverage$Position>=quartile[2] & coverage$Position<=quartile[3], "Quartile"] <- "Second"
+coverage[coverage$Position>=quartile[3] & coverage$Position<=quartile[5], "Quartile"] <- "Third"
+coverage[coverage$Position>=quartile[5] & coverage$Position<=quartile[6], "Quartile"] <- "Fourth"
+
+temp <- coverage[,2:5] %>%
+    group_by(Quartile, Step, Fragment_type) %>%
+    summarise("MeanPercentage" = mean(Percentage))
+temp <- as.data.frame(temp)
+
+temp[,"Quartile"]=factor(x = temp[,"Quartile"], 
+                       levels = c("First", "Second", 
+                                  "Third", "Fourth"))
+
+# Update the log file
+logUpdater(modality = "Update", 
+           message = "4. Producing the Figure 4", 
+           outDir = params$reportDir)
+
+# Plot
+ggplot(data = temp, mapping = aes(x = Quartile, y = MeanPercentage, fill = Fragment_type)) +
+        geom_bar(stat = "identity", position = "dodge", color = "black") +
+        guides(fill=guide_legend(title="Type of fragment")) +
+        facet_wrap(~Step)
+
+ggplot(data = coverage, mapping = aes(x = Position, y = Percentage, color = Fragment_type)) +
+        geom_line() +
+        guides(color=guide_legend(title="Type of fragment")) +
+        facet_wrap(~Step)
+```
+
+# Citation
+
+If you find Rindalyzer useful for your research, please cite:
+Esposito, M. et al. Transposons Acting as Competitive Endogenous RNAs: In-Silico Evidence from Datasets Characterised by L1 Overexpression. Biomedicines 2022, 10, 3279. https://doi.org/10.3390/biomedicines10123279
