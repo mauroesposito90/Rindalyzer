@@ -1,8 +1,8 @@
 # Rindalyzer
-This tool highlights the autonomous transcription of transposable elements (TE) when these result overexpressed. It is in development starting from a pipeline used for analyzing LINE1 elements in the human genome (Esposito et al., Biomedicines 2022, 10(12), 3279; https://doi.org/10.3390/biomedicines10123279) but the same principles can be potentially applied for the analysis of other transposable elements families and other organisms. 
+This tool highlights the autonomous transcription of transposable elements (TE) when these result overexpressed. It is a tool in development starting from a pipeline used for analyzing LINE1 elements in the human genome (Esposito et al., Biomedicines 2022, 10(12), 3279; https://doi.org/10.3390/biomedicines10123279) but the same principles can be potentially applied for the analysis of other transposable elements families and other organisms. 
 
 # Overview
-With this tool, Illummina short RNA-seq paired-end reads are first aligned on the consensus sequence of a TE family and then on the reference genome. The goal is to identify the number of fragments that are completely aligned inside the TEs ("Inside" fragments) and the number of fragments with a read aligned inside a TE and the other one mapping on the reference genome ("Outside" fragments). The rationale is that the sequencing of autonomously transcribed TEs should produce mostly paired-end reads mapping within the internal part of TE RNAs, hence mainly producing "Inside" fragments. Accordingly, by computing the Inside/Outside ratio, high ratio levels should result when TEs are autonomously transcribed.
+With this tool, Illumina short RNA-seq paired-end reads are first aligned on the consensus sequence of a TE family and then on the reference genome. The goal is to identify the number of fragments that are completely aligned inside the TEs ("Inside" fragments) and the number of fragments with a read aligned inside a TE and the other one mapping on the reference genome ("Outside" fragments). The rationale is that the sequencing of autonomously transcribed TEs should produce mostly paired-end reads mapping within the internal part of TE RNAs, hence mainly producing "Inside" fragments. Accordingly, by computing the Inside/Outside ratio, high ratio levels should result when TEs are autonomously transcribed.
 
 # Technical steps:
 1. Alignment of the reads (```--FASTQ_1 and --FASTQ_2 arguments```) on the TE consensus sequence (```--CONSENSUS argument```) with BWA
@@ -41,9 +41,9 @@ The optional arguments are:
 -t / --THREADS, Number of threads [default: 1]
 -b / --BED, Path to BED file of genomic regions [default: none] (See Technical step 7)
 -k / --KEEP_TEMPORARY, TRUE for maintaining temporary files [default: FALSE]
--s / --SAMTOOLS, Path to directory containing the Samtools software [default: none]; use if the path is not in the .bashrc
--B / --BEDTOOLS, Path to directory containing the Bedtools software [default: none]; use if the path is not in the .bashrc
--w / --BWA, Path to directory containing the BWA software [default: none]; use if the path is not in the .bashrc
+-s / --SAMTOOLS, Path to directory containing the Samtools software [default: none]; use if the software path is not in the .bashrc
+-B / --BEDTOOLS, Path to directory containing the Bedtools software [default: none]; use if the software path is not in the .bashrc
+-w / --BWA, Path to directory containing the BWA software [default: none]; use if the software path is not in the .bashrc
 ```
  
 Example usage:
@@ -58,7 +58,7 @@ Example usage:
 
 # Development and Help
 
-The Rindalyzer tool is developed by Mauro Esposito, PhD student in the Computational Genomics lab (SISSA/ISAS - Trieste - Italy) of prof. Remo Sanges. Please feel free to report bugs or suggestions.
+The Rindalyzer tool is developed by Mauro Esposito, PhD student in the Computational Genomics lab (SISSA/ISAS - Trieste - Italy) of Prof. Remo Sanges. Please feel free to report bugs or suggestions.
 
 # Citation
 
