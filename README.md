@@ -58,7 +58,7 @@ Example usage:
 
 # Development and Help
 
-The Rindalyzer tool is developed by Mauro Esposito, PhD student in the Computational Genomics lab (SISSA/ISAS - Trieste - Italy) of Prof. Remo Sanges. Please feel free to report bugs or suggestions.
+The Rindalyzer tool is developed by Mauro Esposito, PhD in Functional and Structural Genomics. Please feel free to report bugs or suggestions.
 
 # Citation
 
